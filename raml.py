@@ -1,7 +1,16 @@
 '''
-    name -> robus
-    age -> 34
-    friends -> suman, arjan, shiva, rudra
+    
+    <<
+        name -> robus
+        age -> 34
+        friends -> suman, arjan, shiva, rudra
+        fitness ->  <<
+                        running -> 100
+                        walking -> 300
+                    >>
+        age -> 12
+    >>
+    
 '''
 ARROW = 'ARROW'
 STRING = 'STRING'
@@ -126,8 +135,9 @@ class Parser:
         statement: assignment_statement
                     | empty
         assignment_statement: factor ARROW expr
-        expr: factor(COMMA factor)*
+        expr: factor(COMMA factor)* | statement_list
         factor: STRING
+                
     '''
 
     def __init__(self, lexer):
