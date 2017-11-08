@@ -7,7 +7,7 @@
         fitness ->  <<
                         running -> 100
                         walking -> 300
-                    >>
+                    >
         age -> 12
     >>
     
