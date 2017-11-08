@@ -13,7 +13,8 @@
     
 '''
 ARROW = 'ARROW'
-STRING = 'STRING'
+LEFT_STRING = 'LEFT_STRING'
+RIGHT_STRING = 'RIGHT_STRING'
 EOF = 'EOF'
 COMMA = 'COMMA'
 NEW_LINE = 'NEW_LINE'
@@ -29,7 +30,8 @@ class Token:
         return 'Token({}, {})'.format(self.type, self.value)
 
 arrow_token = lambda: Token(ARROW)
-string_token = lambda value: Token(STRING, value)
+left_string_token = lambda value: Token(LEFT_STRING, value)
+right_string_token = lambda value: Token(RIGHT_STRING, value)
 eof_token = lambda: Token(EOF)
 comma_token = lambda: Token(COMMA)
 new_line_token = lambda: Token(NEW_LINE)
@@ -83,7 +85,10 @@ class Lexer:
                 self.skip_whitespace()
                 continue
             if self.current_character.isalnum():
-                return string_token(self.variable())
+                return right_string_token(self.variable())
+            if self.current_character == '#':
+                self.advance()
+                return left_string_token(self.variable())
             if self.current_character == '-' and self.ahead_character == '>':
                 self.advance()
                 self.advance()
@@ -110,13 +115,24 @@ class AssignmentNode:
     def __repr__(self):
         return 'AssignmentNode({})'.format(self.left)
 
-class StringNode:
+class LeftStringNode:
 
     def __init__(self, token):
         self.token = token
+        self.value = self.token.value
 
     def __repr__(self):
-        return 'StringNode({})'.format(self.token)
+        return 'LeftStringNode({})'.format(self.token.value)
+
+class RightStringNode:
+
+    def __init__(self, token):
+        self.token = token
+        self.value = self.token.value
+    
+    
+    def __repr__(self):
+        return 'RightStringNode({})'.format(self.ast)
 
 class ExprNode:
 
@@ -134,9 +150,9 @@ class Parser:
                         | statement_list
         statement: assignment_statement
                     | empty
-        assignment_statement: factor ARROW expr
-        expr: factor(COMMA factor)* | statement_list
-        factor: STRING
+        assignment_statement: LEFT_STRING ARROW expr
+        expr: RIGHT_STRING(COMMA RIGHT_STRING)* | statement_list
+        factor: LEFT_STRING | RIGHT_STRING
                 
     '''
 
@@ -160,7 +176,7 @@ class Parser:
         return StatementListNode(_nodes)
     
     def statement(self):
-        if self.current_token.type == STRING:
+        if self.current_token.type == LEFT_STRING:
             return self.assignment_statement()
         return Noop()
 
@@ -171,21 +187,28 @@ class Parser:
         return AssignmentNode(_r, expr)
     
     def expr(self):
-        _result = self.factor()
-        
-        expr_node = ExprNode()
-        expr_node.nodes.append(_result)
-        while self.current_token.type == COMMA:
-            self.eat(COMMA)
-            expr_node.nodes.append(self.factor())
-        
-        return expr_node
+        if self.current_token.type == RIGHT_STRING:
+            _result = self.factor()
+            
+            expr_node = ExprNode()
+            expr_node.nodes.append(_result)
+            while self.current_token.type == COMMA:
+                self.eat(COMMA)
+                expr_node.nodes.append(self.factor())
+            
+            return expr_node
+        if self.current_token.type == LEFT_STRING:
+            return self.statement_list()
+
 
     def factor(self):
         _token = self.current_token
-        if _token.type == STRING:
-            self.eat(STRING)
-            return StringNode(_token)
+        if _token.type == LEFT_STRING:
+            self.eat(LEFT_STRING)
+            return LeftStringNode(_token)
+        if _token.type == RIGHT_STRING:
+            self.eat(RIGHT_STRING)
+            return RightStringNode(_token)
     
              
     
@@ -204,11 +227,14 @@ class Interpreter:
         _method_name = self.evaluate.__name__ + '_' + type(ast).__name__
         return getattr(self, _method_name)(ast)
 
-    def evaluate_StringNode(self, ast):
+    def evaluate_LeftStringNode(self, ast):
         return ast.token.value
 
-    def evaluate_AssignmentNode(self, ast):
-        self._data[ast.left.token.value] = self.evaluate(ast.right)
+    def evaluate_RightStringNode(self, ast):
+        return ast.token.value
+
+
+    
     
     def evaluate_ExprNode(self, ast):
         if len(ast.nodes) == 1:
@@ -220,8 +246,11 @@ class Interpreter:
         return _list
 
     def evaluate_StatementListNode(self, ast):
-        for node in ast.nodes:
-            self.evaluate(node)
+        _result = {}
+        for assignment_node in ast.nodes:
+            if not isinstance(assignment_node, Noop):
+                _result[self.evaluate(assignment_node.left)] = self.evaluate(assignment_node.right)
+        return _result
 
     def evaluate_Noop(self, ast=None):
         pass
@@ -230,10 +259,17 @@ class Interpreter:
         return self.evaluate(self.parser.statement_list())
 
 
-def load(text):
+def loads(text):
     lexer = Lexer(text)
     parser = Parser(lexer)
     interpreter = Interpreter(parser)
-    interpreter.interpret()
-    return interpreter._data
+    return interpreter.interpret()
+    
 
+
+def parse(text):
+    lexer = Lexer(text)
+    parser = Parser(lexer)
+    return parser.statement_list()
+
+;;
