@@ -58,6 +58,7 @@ class Base(metaclass=MyType):
 
     
     def __init__(self, *args, **kwargs):
+        #Ide being confused
         bound = self.sig.bind(*args, **kwargs)
         for key, val in bound.arguments.items():
             setattr(self, key, val)
