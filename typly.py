@@ -213,6 +213,8 @@ class Base(metaclass=MyType):
         for key, val in bound.arguments.items():
             setattr(self, key, val)
 
+            
+
 class Person(Base):
     name : String
     age : Integer
