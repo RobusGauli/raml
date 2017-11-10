@@ -27,6 +27,18 @@ class Share:
         self.price = price
 
 
+class Contract:
+
+    def __set_name__(self, cls, name):
+        self.name = name
+
+    def __set__(self, instance, value):
+        #print
+        print('setting...')
+        instance.__dict__[self.name] = value
+
+
+
 from inspect import Signature, Parameter
 
 make_signature = lambda _fields : Signature([Parameter(f, Parameter.POSITIONAL_OR_KEYWORD) for f in _fields])
@@ -59,16 +71,6 @@ class Vector(Base):
     fields = 'x y'.split()
 
 
-class Contract:
-
-    def __set_name__(self, cls, name):
-        self.name = name
-
-    def __set__(self, instance, value):
-        #print
-        print('setting...')
-        instance.__dict__[self.name] = value
-
 
 class Typed(Contract):
     ty = None
@@ -86,12 +88,49 @@ class Float(Typed):
     ty = float
 
 
-class Person(Base):
-    
-    name = String()
-    age = Integer()
+class Positive(Contract):
 
-class Vector(Base):
-    x = Integer()
-    y = Integer()
-    #this is how django model works out of box
+    def __init__(self, *args, positive=False, **kwargs):
+        self.positive = positive
+        super().__init__(*args, **kwargs)
+
+    def __set__(self, instance, value):
+        if self.positive and value is not None:
+            assert value > 0, 'Expected Positive value'
+        super().__set__(instance, value)
+
+
+class NotNull(Contract):
+
+    def __init__(self, *args, notnull=False, **kwargs):
+        self.notnull = notnull
+        super().__init__(*args, **kwargs)
+
+    def __set__(self, instance, value):
+        if self.notnull:
+            assert value != None,' Value cannot be None'
+        super().__set__(instance, value)
+
+class NonEmpty(Contract):
+
+    def __init__(self, *args, empty=True, **kwargs):
+        self.empty = empty
+        super().__init__(*args, **kwargs)
+    
+    def __set__(self, instance, value):
+        if self.empty == False:
+            assert len(value) >= 1, 'String cannot be non empty'
+        super().__set__(instance, value)
+    
+class RInteger(Integer, Positive, NotNull):
+    pass
+
+class RString(String, NotNull, NonEmpty):
+    pass
+
+class Person(Base):
+    name = RString(empty=False, notnull=True)
+    age = RInteger(positive=True)
+    #this is how django model workd in the darkest corneer
+
+
