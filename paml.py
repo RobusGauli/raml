@@ -8,11 +8,18 @@ a = '''
         #love: sadf,
         #life: 12
     ),
-    #asd: $(kings)
+    #asd: life
     
 )
 '''
 
+b = '''
+    (
+        #love: there is nothign that hurts more,
+        #kindless : there is watcin means,
+        #lover: beather
+    )
+'''
 
 from node import (
     JsonObjectNode,
@@ -85,6 +92,14 @@ class Lexer:
             self.advance()
         return _result
     
+    def value_string(self):
+        _result = ''
+        while self.current_character is not None and (self.current_character.isalnum() or self.current_character.isspace()):
+            _result += self.current_character
+            self.advance()
+        return _result
+
+    
 
     def get_next_token(self):
         while True:
@@ -122,7 +137,7 @@ class Lexer:
                 return rsbracket_token()
 
             if self.current_character.isalnum():
-                return valuestring_token(self.string())
+                return valuestring_token(self.value_string())
 
             self.error()
 
@@ -218,11 +233,43 @@ class Parser:
     parse = lambda self: self.json_object()
 
 
+class Interpreter:
 
+    def __init__(self, parser):
+        self.parser = parser
+    
+
+    def evaluate(self, ast):
+        #do the method dispatching
+        method_name = 'evaluate_' + type(ast).__name__
+        return getattr(self, method_name)(ast)
+
+    def evaluate_JsonObjectNode(self, object_node):
+        #make the dictionary out of the object node
+        _result = {}
+        for assignment_node in object_node.nodes:
+            _result[assignment_node.left.value] = self.evaluate(assignment_node.right)
+        return _result
+
+    def evaluate_ValueStringNode(self, value_string_node):
+        return value_string_node.value
+
+    def evaluate_JsonListNode(self, jsonlist_node):
+        _result = []
+        for node in jsonlist_node.nodes:
+            _result.append(self.evaluate(node))
+        return _result
+
+    
+    def interpret(self):
+        return self.evaluate(self.parser.parse())
+        
 def parse():
-    l = Lexer(a)
+    l = Lexer(b)
     p = Parser(l)
-    return p.parse()
+    i = Interpreter(p)
+    return i.interpret()
+
 
     
     
